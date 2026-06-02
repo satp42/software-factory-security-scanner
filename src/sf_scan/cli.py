@@ -1,7 +1,6 @@
 """Command-line interface for sf-scan.
 
-This module reserves the full CLI surface and orchestrates the scan
-pipeline end-to-end:
+The scan pipeline runs in five stages:
 
   1. Parse args, validate inputs (KG path exists, at least one target).
   2. Load the Knowledge Graph and surface any structural issues.
@@ -12,8 +11,8 @@ pipeline end-to-end:
   5. Render report.json and report.md, grouping findings by ontology
      level and surfacing any unmapped findings as a KG coverage gap.
 
-The ``run_scan`` function takes the heavy lifting and accepts an
-injectable ``osv_client`` so tests can run end-to-end without network.
+``run_scan`` is the orchestration entry point and accepts an injectable
+``osv_client`` so tests can run end-to-end without network.
 """
 
 from __future__ import annotations
@@ -22,7 +21,6 @@ import argparse
 import sys
 from collections import Counter
 from pathlib import Path
-from typing import Iterable
 
 from . import __version__
 from .extract import ManifestParseError, extract_dependencies
@@ -35,7 +33,6 @@ from .vuln import OsvClient, query as vuln_query
 
 # Exit codes
 EXIT_OK = 0
-EXIT_PARTIAL = 1  # findings present (kept as 0 for now; reserved)
 EXIT_USAGE = 2  # bad args, missing flags
 EXIT_INPUT = 3  # input not found or invalid (KG path, all clones failed)
 

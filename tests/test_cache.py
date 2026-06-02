@@ -1,4 +1,4 @@
-"""Tests for the SQLite vulnerability cache (U3)."""
+"""Tests for the SQLite vulnerability cache."""
 
 from __future__ import annotations
 

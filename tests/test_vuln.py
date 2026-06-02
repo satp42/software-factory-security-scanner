@@ -1,4 +1,4 @@
-"""Tests for the vulnerability query client (U3)."""
+"""Tests for the vulnerability query client."""
 
 from __future__ import annotations
 

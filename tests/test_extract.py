@@ -1,4 +1,4 @@
-"""Tests for manifest extraction (U2)."""
+"""Tests for manifest extraction."""
 
 from __future__ import annotations
 

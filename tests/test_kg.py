@@ -1,4 +1,4 @@
-"""Tests for the Knowledge Graph parser and ontology resolver (U5)."""
+"""Tests for the Knowledge Graph parser and ontology resolver."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Tests for repo fetch helper (U2)."""
+"""Tests for repo fetch helper."""
 
 from __future__ import annotations
 

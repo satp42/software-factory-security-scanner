@@ -1,4 +1,4 @@
-"""End-to-end CLI integration tests (U7).
+"""End-to-end CLI integration tests.
 
 These exercise the full pipeline — repo fetch, manifest extraction,
 vulnerability query, KG resolution, report rendering — against a local

@@ -1,4 +1,4 @@
-"""Tests for report generation (U6)."""
+"""Tests for report generation."""
 
 from __future__ import annotations
 

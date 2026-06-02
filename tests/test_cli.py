@@ -1,4 +1,4 @@
-"""Tests for the sf-scan CLI surface (U1)."""
+"""Tests for the sf-scan CLI surface."""
 
 from __future__ import annotations
 
@@ -84,15 +84,14 @@ class TestScanInvocation:
         assert "--repo-list" in stderr
         assert "does not exist" in stderr.lower() or str(missing) in stderr
 
-    def test_scan_with_valid_args_invokes_real_orchestration(
+    def test_scan_with_unreachable_repo_returns_input_error(
         self, tmp_path: Path
     ) -> None:
-        # With U7 wired, the scan path reaches real orchestration. A bogus
-        # remote URL ends up at the all-clones-failed exit code (3), not the
-        # original U1 "not yet implemented" stub.
+        # Every target clone fails ⇒ exit 3 (input error). The scan reached
+        # the fetch stage; it didn't fail at arg validation.
         kg_dir = tmp_path / "kg"
         kg_dir.mkdir()
-        code, _, stderr = _capture(
+        code, _, _ = _capture(
             [
                 "scan",
                 "--kg",
@@ -101,14 +100,10 @@ class TestScanInvocation:
                 "https://example.invalid/no-such-repo",
             ]
         )
-        # Exit 3 = input error (all clones failed). Stub message no longer
-        # appears.
         assert code == 3
-        assert "not yet implemented" not in stderr.lower()
 
     def test_scan_accepts_url_at_sha_syntax(self, tmp_path: Path) -> None:
-        # U7 parses the @SHA. Bogus URL still fails to clone (exit 3) but
-        # argparse no longer rejects the URL@SHA shape itself.
+        # URL@SHA is a parseable spec; argparse passes it through to fetch.
         kg_dir = tmp_path / "kg"
         kg_dir.mkdir()
         code, _, _ = _capture(
@@ -124,10 +119,9 @@ class TestScanInvocation:
 
 
 class TestRepeatableRepoFlag:
-    def test_multiple_repos_accepted_by_argparse(self, tmp_path: Path) -> None:
-        # Both URLs accepted by argparse; orchestration tries to clone each
-        # and fails (bogus URLs), exiting 3. We only assert argparse didn't
-        # itself reject the repeatable flag.
+    def test_repeatable_repo_flag_scans_each_target(self, tmp_path: Path) -> None:
+        # --repo is repeatable; every value reaches the per-target fetch
+        # stage and shows up in the scanning log, even when all clones fail.
         kg_dir = tmp_path / "kg"
         kg_dir.mkdir()
         code, _, stderr = _capture(
@@ -142,6 +136,5 @@ class TestRepeatableRepoFlag:
             ]
         )
         assert code == 3
-        # Both URLs surfaced in the per-target scanning log
         assert "example.invalid/one" in stderr
         assert "example.invalid/two" in stderr
