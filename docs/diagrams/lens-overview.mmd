@@ -1,0 +1,30 @@
+flowchart TB
+  subgraph KG["Software Factory Knowledge Graph"]
+    PRD["PRD<br/>(Requirements)"]
+    Feature["Feature Node"]
+    BP["Blueprint"]
+    WO["Work Order"]
+    Code["Code"]
+    PRD --> Feature --> BP --> WO --> Code
+  end
+
+  subgraph Engine["Alignment-Aware Security Assessment Engine"]
+    L1["Lens 1<br/>Dependency CVE<br/>(shipped)"]
+    L2["Lens 2<br/>Requirements→Test<br/>Coverage"]
+    L3["Lens 3<br/>Blueprint→Code<br/>Drift"]
+    L4["Lens 4<br/>Work Order→Code<br/>Trace Completeness"]
+  end
+
+  L1 -. "package → WO → BP → Feature → PRD" .-> WO
+  L2 -. "PRD acceptance examples → tests" .-> PRD
+  L3 -. "Blueprint decisions vs implementation" .-> BP
+  L4 -. "Work Order intent vs code diff (alignment-debt score)" .-> WO
+
+  L4 ==> AD["Alignment-Debt Scoring<br/>(federated-learning bridge)"]
+
+  classDef shipped fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
+  classDef sketch fill:#f3f4f6,stroke:#6b7280,color:#374151;
+  classDef bridge fill:#fef3c7,stroke:#b45309,color:#78350f;
+  class L1 shipped;
+  class L2,L3,L4 sketch;
+  class AD bridge;
