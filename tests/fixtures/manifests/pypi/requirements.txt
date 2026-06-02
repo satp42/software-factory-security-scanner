@@ -1,0 +1,12 @@
+# Sample requirements file for sf-scan tests
+requests==2.28.1
+flask>=2.0.0
+django~=4.1.0
+pyyaml
+# A comment line that should be ignored
+sqlalchemy[postgresql]>=2.0
+
+-r other-requirements.txt
+-e ./local-pkg
+git+https://github.com/foo/bar.git
+https://example.com/some-wheel.whl
