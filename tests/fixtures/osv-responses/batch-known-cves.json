@@ -1,0 +1,20 @@
+{
+  "results": [
+    {
+      "vulns": [
+        {"id": "GHSA-jf85-cpcp-j695"}
+      ]
+    },
+    {
+      "vulns": [
+        {"id": "GHSA-29mw-wpgm-hmr9"}
+      ]
+    },
+    {},
+    {
+      "vulns": [
+        {"id": "GHSA-rrqm-p222-3p2q"}
+      ]
+    }
+  ]
+}

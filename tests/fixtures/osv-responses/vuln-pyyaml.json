@@ -1,0 +1,23 @@
+{
+  "id": "GHSA-29mw-wpgm-hmr9",
+  "summary": "PyYAML insecurely deserializes YAML data when running yaml.load with a default loader",
+  "affected": [
+    {
+      "package": {"ecosystem": "PyPI", "name": "pyyaml"},
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {"introduced": "0"},
+            {"fixed": "5.4"}
+          ]
+        }
+      ],
+      "database_specific": {"severity": "MODERATE"}
+    }
+  ],
+  "database_specific": {"severity": "MODERATE"},
+  "references": [
+    {"type": "ADVISORY", "url": "https://github.com/advisories/GHSA-29mw-wpgm-hmr9"}
+  ]
+}

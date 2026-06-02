@@ -1,0 +1,27 @@
+{
+  "id": "GHSA-jf85-cpcp-j695",
+  "summary": "Prototype Pollution in lodash",
+  "details": "Versions of lodash prior to 4.17.12 are vulnerable to Prototype Pollution via the merge function.",
+  "affected": [
+    {
+      "package": {"ecosystem": "npm", "name": "lodash"},
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {"introduced": "0"},
+            {"fixed": "4.17.12"}
+          ]
+        }
+      ],
+      "database_specific": {"severity": "HIGH"}
+    }
+  ],
+  "severity": [
+    {"type": "CVSS_V3", "score": "9.8"}
+  ],
+  "database_specific": {"severity": "CRITICAL"},
+  "references": [
+    {"type": "ADVISORY", "url": "https://github.com/advisories/GHSA-jf85-cpcp-j695"}
+  ]
+}

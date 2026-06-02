@@ -1,0 +1,23 @@
+{
+  "id": "GHSA-rrqm-p222-3p2q",
+  "summary": "Express vulnerable to open redirect via malformed URLs",
+  "affected": [
+    {
+      "package": {"ecosystem": "npm", "name": "express"},
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {"introduced": "0"},
+            {"fixed": "4.19.0"}
+          ]
+        }
+      ],
+      "database_specific": {"severity": "LOW"}
+    }
+  ],
+  "database_specific": {"severity": "LOW"},
+  "references": [
+    {"type": "ADVISORY", "url": "https://github.com/advisories/GHSA-rrqm-p222-3p2q"}
+  ]
+}
