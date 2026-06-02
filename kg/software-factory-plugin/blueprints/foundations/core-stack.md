@@ -3,6 +3,7 @@ id: BP-FND-001
 title: Core Stack — Node.js + TypeScript + pnpm
 type: blueprint
 blueprint_type: foundation
+product: PRD-001
 ---
 
 # BP-FND-001 — Core Stack

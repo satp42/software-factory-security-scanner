@@ -6,7 +6,6 @@ blueprint: BP-FND-001
 dependencies-introduced:
   - "npm:tsx"
   - "npm:typescript"
-  - "npm:@types/node"
 files-affected:
   - "package.json"
   - "tsconfig.json"
