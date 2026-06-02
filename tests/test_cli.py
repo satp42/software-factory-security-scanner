@@ -84,28 +84,12 @@ class TestScanInvocation:
         assert "--repo-list" in stderr
         assert "does not exist" in stderr.lower() or str(missing) in stderr
 
-    def test_scan_with_valid_args_reaches_stub(self, tmp_path: Path) -> None:
-        kg_dir = tmp_path / "kg"
-        kg_dir.mkdir()
-        code, _, stderr = _capture(
-            [
-                "scan",
-                "--kg",
-                str(kg_dir),
-                "--repo",
-                "https://github.com/example/repo",
-            ]
-        )
-        # U1 stub: scan path validates inputs then exits 1 with "not yet
-        # implemented" until U7 wires the orchestration.
-        assert code == 1
-        assert "not yet implemented" in stderr.lower()
-
-    def test_scan_accepts_url_at_sha_syntax_without_error_in_u1(
+    def test_scan_with_valid_args_invokes_real_orchestration(
         self, tmp_path: Path
     ) -> None:
-        # U1 doesn't parse the @SHA — that's U7. We just confirm argparse
-        # accepts the string and U1's stub fires.
+        # With U7 wired, the scan path reaches real orchestration. A bogus
+        # remote URL ends up at the all-clones-failed exit code (3), not the
+        # original U1 "not yet implemented" stub.
         kg_dir = tmp_path / "kg"
         kg_dir.mkdir()
         code, _, stderr = _capture(
@@ -114,15 +98,36 @@ class TestScanInvocation:
                 "--kg",
                 str(kg_dir),
                 "--repo",
-                "https://github.com/example/repo@a1b2c3d",
+                "https://example.invalid/no-such-repo",
             ]
         )
-        assert code == 1
-        assert "not yet implemented" in stderr.lower()
+        # Exit 3 = input error (all clones failed). Stub message no longer
+        # appears.
+        assert code == 3
+        assert "not yet implemented" not in stderr.lower()
+
+    def test_scan_accepts_url_at_sha_syntax(self, tmp_path: Path) -> None:
+        # U7 parses the @SHA. Bogus URL still fails to clone (exit 3) but
+        # argparse no longer rejects the URL@SHA shape itself.
+        kg_dir = tmp_path / "kg"
+        kg_dir.mkdir()
+        code, _, _ = _capture(
+            [
+                "scan",
+                "--kg",
+                str(kg_dir),
+                "--repo",
+                "https://example.invalid/repo@a1b2c3d",
+            ]
+        )
+        assert code == 3
 
 
 class TestRepeatableRepoFlag:
-    def test_multiple_repos_accepted(self, tmp_path: Path) -> None:
+    def test_multiple_repos_accepted_by_argparse(self, tmp_path: Path) -> None:
+        # Both URLs accepted by argparse; orchestration tries to clone each
+        # and fails (bogus URLs), exiting 3. We only assert argparse didn't
+        # itself reject the repeatable flag.
         kg_dir = tmp_path / "kg"
         kg_dir.mkdir()
         code, _, stderr = _capture(
@@ -131,11 +136,12 @@ class TestRepeatableRepoFlag:
                 "--kg",
                 str(kg_dir),
                 "--repo",
-                "https://github.com/example/one",
+                "https://example.invalid/one",
                 "--repo",
-                "https://github.com/example/two",
+                "https://example.invalid/two",
             ]
         )
-        # Both URLs accepted by argparse, validation passes, stub fires.
-        assert code == 1
-        assert "not yet implemented" in stderr.lower()
+        assert code == 3
+        # Both URLs surfaced in the per-target scanning log
+        assert "example.invalid/one" in stderr
+        assert "example.invalid/two" in stderr

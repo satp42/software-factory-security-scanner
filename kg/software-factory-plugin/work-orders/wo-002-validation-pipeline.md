@@ -6,6 +6,9 @@ blueprint: BP-001
 dependencies-introduced:
   - "npm:zod"
   - "npm:yaml"
+  - "npm:ajv"
+  - "npm:json-schema"
+  - "npm:semver"
 files-affected:
   - "src/validate.ts"
   - "src/schema.ts"

@@ -22,10 +22,11 @@ class RepoFetchError(Exception):
 def parse_repo_spec(spec: str) -> tuple[str, str | None]:
     """Split an ``URL[@SHA]`` spec into ``(url, sha)``.
 
-    HTTPS URLs are split on the last ``@``. SSH-style URLs (``git@host:org/repo``)
-    are returned as-is because their ``@`` is part of the host portion.
+    HTTPS, HTTP, and FILE URLs are split on the last ``@``. SSH-style URLs
+    (``git@host:org/repo``) are returned as-is because their ``@`` is part
+    of the host portion.
     """
-    if spec.startswith(("http://", "https://")) and "@" in spec:
+    if spec.startswith(("http://", "https://", "file://")) and "@" in spec:
         url, sha = spec.rsplit("@", 1)
         return url, sha
     return spec, None
