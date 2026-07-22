@@ -1,0 +1,33 @@
+{
+  "items": [
+    {
+      "object": "work_order",
+      "id": "3f1c2a9e-6a51-4c1e-9b1a-0d5e8f7a2b4c",
+      "work_order_number": 12,
+      "title": "Manifest validation pipeline",
+      "status": "completed",
+      "priority": "high",
+      "type": "build",
+      "phase": null,
+      "assignee": null,
+      "labels": [],
+      "description_snippet": "Implement the per-plugin manifest validator..."
+    },
+    {
+      "object": "work_order",
+      "id": "aaaa1111-0000-4000-8000-000000000000",
+      "work_order_number": 3,
+      "title": "Quality toolchain",
+      "status": "completed",
+      "priority": "medium",
+      "type": "build",
+      "phase": null,
+      "assignee": null,
+      "labels": [],
+      "description_snippet": "Set up linting and formatting..."
+    }
+  ],
+  "page": 1,
+  "page_size": 100,
+  "total": 2
+}

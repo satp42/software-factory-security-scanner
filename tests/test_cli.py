@@ -57,11 +57,39 @@ class TestScanInvocation:
         assert code == 2
         assert "usage" in stderr.lower() or "sf-scan" in stderr.lower()
 
-    def test_scan_without_kg_argparse_rejects(self) -> None:
-        # argparse fires its own error on missing --kg before our validation runs.
-        code, _, stderr = _capture(["scan"])
+    def test_scan_without_kg_source_rejected(self) -> None:
+        # One of --kg / --kg-api / --kg-sw-factory is required.
+        code, _, stderr = _capture(["scan", "--repo", "https://example.com/r"])
         assert code == 2
         assert "--kg" in stderr
+
+    def test_kg_source_flags_mutually_exclusive(self) -> None:
+        code, _, stderr = _capture(
+            [
+                "scan",
+                "--repo",
+                "https://example.com/r",
+                "--kg",
+                "some/dir",
+                "--kg-sw-factory",
+            ]
+        )
+        assert code == 2
+        assert "not allowed with" in stderr
+
+    def test_kg_api_without_key_env_rejected(self, monkeypatch) -> None:
+        monkeypatch.delenv("SOFA_EXT_API_KEY", raising=False)
+        code, _, stderr = _capture(
+            [
+                "scan",
+                "--repo",
+                "https://example.com/r",
+                "--kg-api",
+                "https://factory.example.com",
+            ]
+        )
+        assert code == 2
+        assert "SOFA_EXT_API_KEY" in stderr
 
     def test_scan_with_kg_but_no_repo_targets_fails(self, tmp_path: Path) -> None:
         kg_dir = tmp_path / "kg"

@@ -1,7 +1,13 @@
-"""Software Factory Knowledge Graph parser and ontology resolver.
+"""Software Factory Knowledge Graph ontology resolver and its source seam.
 
-A Knowledge Graph is a directory tree of Markdown files. Each file carries a
-YAML frontmatter block declaring its identifier and its parent references:
+The resolver (:class:`KnowledgeGraph`) is source-agnostic: it indexes
+normalized :class:`KGNode` values produced by a :class:`GraphSource` adapter
+(local Markdown directory here; ``.sw-factory`` reader in ``swfactory.py``;
+Software Factory external REST API in ``sf_api.py``).
+
+The local-directory source reads a directory tree of Markdown files. Each
+file carries a YAML frontmatter block declaring its identifier and parent
+references:
 
 - Product Overview (``type: product-overview``) — top of the chain.
 - Feature Requirements (``type: feature-requirements``) — point at a PRD via ``product``.
@@ -24,7 +30,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterable, Iterator, Protocol
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +124,8 @@ class KGNode:
     id: str
     title: str
     artifact_type: str  # "prd" | "feature" | "blueprint-foundation" | "blueprint-feature" | "work-order"
-    path: str  # repo-relative POSIX path to the source Markdown file
+    path: str | None  # repo-relative POSIX path to the source Markdown file, when file-backed
+    url: str | None = None  # web link to the artifact, when API-backed
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -190,30 +197,48 @@ class ValidationIssue:
 
 
 # ---------------------------------------------------------------------------
-# KnowledgeGraph loader + resolver
+# GraphSource seam
 # ---------------------------------------------------------------------------
 
 
-class KnowledgeGraph:
-    """In-memory index of a synthetic Software Factory Knowledge Graph."""
+class GraphSource(Protocol):
+    """Anything that can produce Knowledge Graph nodes.
+
+    The resolver (:class:`KnowledgeGraph`) is source-agnostic: it consumes
+    normalized :class:`KGNode` values and never touches disk or network
+    itself. Each source adapter is responsible for mapping its native schema
+    into the canonical node shape — in particular, populating
+    ``metadata["dependencies-introduced"]`` (or leaving it absent, in which
+    case dependency attribution comes from post-construction enrichment via
+    :meth:`KnowledgeGraph.add_dependencies`).
+    """
+
+    def iter_nodes(self) -> Iterable[KGNode]:
+        """Yield every node in the graph."""
+        ...
+
+    def describe(self) -> str:
+        """One-line provenance label for reports and error messages."""
+        ...
+
+
+class LocalDirectorySource:
+    """Reads a KG from a directory tree of frontmattered Markdown files.
+
+    This is the synthetic-KG loader used for demos and test fixtures.
+    """
 
     def __init__(self, root: Path) -> None:
         self.root = root
-        self.nodes: dict[str, KGNode] = {}
-        # (ecosystem, package) → list of Work Order ids that declared it
-        self._dep_index: dict[tuple[str, str], list[str]] = {}
 
-    @classmethod
-    def load(cls, root: Path) -> "KnowledgeGraph":
-        kg = cls(root)
-        for md_path in cls._iter_markdown(root):
-            node = cls._load_node(root, md_path)
-            if node is None:
-                continue
-            kg.nodes[node.id] = node
-            if node.artifact_type == "work-order":
-                cls._index_dependencies(kg, node)
-        return kg
+    def describe(self) -> str:
+        return f"local directory {self.root}"
+
+    def iter_nodes(self) -> Iterator[KGNode]:
+        for md_path in self._iter_markdown(self.root):
+            node = self._load_node(self.root, md_path)
+            if node is not None:
+                yield node
 
     @staticmethod
     def _iter_markdown(root: Path) -> Iterator[Path]:
@@ -268,8 +293,45 @@ class KnowledgeGraph:
             metadata=front,
         )
 
-    @staticmethod
-    def _index_dependencies(kg: "KnowledgeGraph", wo: KGNode) -> None:
+# ---------------------------------------------------------------------------
+# KnowledgeGraph resolver
+# ---------------------------------------------------------------------------
+
+
+class KnowledgeGraph:
+    """In-memory index of a Software Factory Knowledge Graph."""
+
+    def __init__(self, source_label: str) -> None:
+        self.source_label = source_label
+        self.nodes: dict[str, KGNode] = {}
+        # (ecosystem, package) → list of Work Order ids that declared it
+        self._dep_index: dict[tuple[str, str], list[str]] = {}
+
+    @classmethod
+    def from_source(cls, source: GraphSource) -> "KnowledgeGraph":
+        kg = cls(source.describe())
+        kg.extend_from_source(source)
+        return kg
+
+    def extend_from_source(self, source: GraphSource) -> None:
+        """Merge another source's nodes in (first declaration wins).
+
+        Used by multi-target ``.sw-factory`` scans, where each cloned repo
+        contributes its own execution state to one aggregate graph.
+        """
+        for node in source.iter_nodes():
+            if node.id in self.nodes:
+                continue
+            self.nodes[node.id] = node
+            if node.artifact_type == "work-order":
+                self._index_dependencies(node)
+
+    @classmethod
+    def load(cls, root: Path) -> "KnowledgeGraph":
+        """Back-compat convenience for the local-directory source."""
+        return cls.from_source(LocalDirectorySource(root))
+
+    def _index_dependencies(self, wo: KGNode) -> None:
         deps = wo.metadata.get("dependencies-introduced") or []
         if not isinstance(deps, list):
             return
@@ -281,7 +343,25 @@ class KnowledgeGraph:
             package = package.strip()
             if not ecosystem or not package:
                 continue
-            kg._dep_index.setdefault((ecosystem, package), []).append(wo.id)
+            self._dep_index.setdefault((ecosystem, package), []).append(wo.id)
+
+    def add_dependencies(self, wo_id: str, deps: Iterable[str]) -> None:
+        """Attribute ``eco:pkg`` entries to a Work Order after construction.
+
+        Used by derivation-based enrichment (git manifest deltas) for sources
+        whose native schema carries no dependency declarations.
+        """
+        for entry in deps:
+            if ":" not in entry:
+                continue
+            ecosystem, _, package = entry.partition(":")
+            ecosystem = ecosystem.strip()
+            package = package.strip()
+            if not ecosystem or not package:
+                continue
+            wo_ids = self._dep_index.setdefault((ecosystem, package), [])
+            if wo_id not in wo_ids:
+                wo_ids.append(wo_id)
 
     # -----------------------------------------------------------------------
     # Resolver
@@ -333,7 +413,7 @@ class KnowledgeGraph:
             issues.append(
                 ValidationIssue(
                     severity="error",
-                    path=str(self.root),
+                    path=self.source_label,
                     message="no Knowledge Graph artifacts found",
                 )
             )
@@ -347,7 +427,7 @@ class KnowledgeGraph:
                     issues.append(
                         ValidationIssue(
                             severity="error",
-                            path=node.path,
+                            path=node.path or node.id,
                             message=f"work order {node.id} missing 'blueprint' reference",
                         )
                     )
@@ -355,7 +435,7 @@ class KnowledgeGraph:
                     issues.append(
                         ValidationIssue(
                             severity="error",
-                            path=node.path,
+                            path=node.path or node.id,
                             message=f"work order {node.id} references unknown blueprint {bp!r}",
                         )
                     )
@@ -365,7 +445,7 @@ class KnowledgeGraph:
                     issues.append(
                         ValidationIssue(
                             severity="error",
-                            path=node.path,
+                            path=node.path or node.id,
                             message=f"feature blueprint {node.id} missing 'feature' reference",
                         )
                     )
@@ -373,7 +453,7 @@ class KnowledgeGraph:
                     issues.append(
                         ValidationIssue(
                             severity="error",
-                            path=node.path,
+                            path=node.path or node.id,
                             message=f"feature blueprint {node.id} references unknown feature {f!r}",
                         )
                     )
@@ -383,7 +463,7 @@ class KnowledgeGraph:
                     issues.append(
                         ValidationIssue(
                             severity="error",
-                            path=node.path,
+                            path=node.path or node.id,
                             message=(
                                 f"foundation blueprint {node.id} missing 'product' reference"
                             ),
@@ -393,7 +473,7 @@ class KnowledgeGraph:
                     issues.append(
                         ValidationIssue(
                             severity="error",
-                            path=node.path,
+                            path=node.path or node.id,
                             message=(
                                 f"foundation blueprint {node.id} references unknown product {p!r}"
                             ),
@@ -405,7 +485,7 @@ class KnowledgeGraph:
                     issues.append(
                         ValidationIssue(
                             severity="error",
-                            path=node.path,
+                            path=node.path or node.id,
                             message=f"feature {node.id} missing 'product' reference",
                         )
                     )
@@ -413,7 +493,7 @@ class KnowledgeGraph:
                     issues.append(
                         ValidationIssue(
                             severity="error",
-                            path=node.path,
+                            path=node.path or node.id,
                             message=f"feature {node.id} references unknown product {p!r}",
                         )
                     )
@@ -424,7 +504,9 @@ class KnowledgeGraph:
                 issues.append(
                     ValidationIssue(
                         severity="warning",
-                        path=", ".join(self.nodes[w].path for w in wo_ids if w in self.nodes),
+                        path=", ".join(
+                            self.nodes[w].path or w for w in wo_ids if w in self.nodes
+                        ),
                         message=(
                             f"{ecosystem}:{package} declared in multiple work orders: "
                             f"{', '.join(wo_ids)}"

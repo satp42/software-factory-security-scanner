@@ -1,0 +1,21 @@
+{
+  "data": {
+    "object": "work_order",
+    "id": "aaaa1111-0000-4000-8000-000000000000",
+    "work_order_number": 3,
+    "title": "Quality toolchain",
+    "status": "completed",
+    "priority": "medium",
+    "type": "build",
+    "phase": null,
+    "assignee": null,
+    "labels": [],
+    "markdown_content": "## Summary\n\nSet up linting and formatting.\n\n## In Scope\n\n- ESLint\n\n## Out of Scope\n\n- CI\n\n## Requirements\n\n- Plugin Platform Product Overview\n\n## Blueprints\n\n- Repository Conventions\n\n## E2E Acceptance Tests\n\n- COV_LINT_001",
+    "implementation_plan": null,
+    "created_at": "2026-06-22T09:00:00Z",
+    "updated_at": "2026-07-02T10:00:00Z",
+    "connected_context": [
+      {"resourceType": "blueprint", "resourceId": "bp-doc-custom-001"}
+    ]
+  }
+}

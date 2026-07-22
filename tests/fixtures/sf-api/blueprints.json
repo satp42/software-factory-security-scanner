@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "object": "blueprint",
+      "id": "bp-doc-feat-001",
+      "title": "Validation Architecture",
+      "blueprint_class": "FEATURE",
+      "connected_context": [
+        {"resourceType": "requirements_document", "resourceId": "req-doc-feat-001"}
+      ]
+    },
+    {
+      "object": "blueprint",
+      "id": "bp-doc-custom-001",
+      "title": "Repository Conventions",
+      "blueprint_class": "CUSTOM",
+      "connected_context": []
+    }
+  ],
+  "page": 1,
+  "page_size": 100,
+  "total": 2
+}

@@ -28,6 +28,10 @@ All four lenses share a contract: each consumes part of the Knowledge Graph plus
 
 **Input from KG.** Work Order frontmatter (specifically the `dependencies-introduced` and `blueprint` fields), plus the chain of parent references on Blueprints (`feature` or `product`), Features (`product`), and PRDs.
 
+> **Schema note.** `dependencies-introduced` is a convention of this repo's synthetic Knowledge Graph only — real Software Factory Work Orders have no machine-readable dependency field (the Work Order description is six mandated Markdown sections, none structured for dependencies). Against real graphs, the scanner *derives* the field instead: each Work Order's delivery branch/PR (recorded in the repo's committed `.sw-factory/WO-*/context.md`) is resolved to a git commit range, and the dependency-manifest delta over that range is attributed to the Work Order (`src/sf_scan/derive.py`). That manifest-delta computation is exactly Lens 4's `Sd` sub-signal — built once, serving both lenses.
+
+**Graph sources.** The resolver is source-agnostic behind a `GraphSource` seam with three adapters: a local Markdown directory (synthetic KG, demos, fixtures), the Software Factory **external REST API**, and the target repo's own `.sw-factory` execution state. Swapping synthetic → real is configuration, not engineering.
+
 **Input from code.** The repo's dependency manifests (`package.json`, `package-lock.json`, `requirements.txt`, `pyproject.toml`, `go.mod`, `Gemfile.lock`).
 
 **Output.** `report.md` and `report.json`. Each finding lists the affected package, severity, fix version, and the upward path through Work Order → Blueprint → Feature → PRD. Findings whose package is not declared in any Work Order land in the **Unmapped Findings** section — themselves a Lens 4 precursor (KG coverage gap that an alignment-debt score would quantify).
@@ -146,7 +150,7 @@ This section is the technical foundation, not the implementation. A full essay o
 
 Sequenced after Lens 1, in priority order:
 
-1. **Lens 2 (Requirements-to-Test Coverage)**: highest immediate utility per Sina's stated Pillar 2. Requires KG read access via the Software Factory API; estimated ~2 weeks to working v1 once API access opens.
+1. **Lens 2 (Requirements-to-Test Coverage)**: highest immediate utility per Sina's stated Pillar 2. Requires KG read access via Software Factory's **external REST API** — `/v2/external-api/{requirements,blueprints,work_orders,...}`, authenticated with a project-scoped `sofa-ext-` API key, returning structured JSON with `connected_context` edges. (Software Factory also exposes an MCP server, but it authenticates via short-lived OAuth tokens and returns formatted text rather than JSON — the REST surface, not MCP, is the integration target for headless tooling; Lens 1's `--kg-api` mode already consumes it.) Estimated ~2 weeks to working v1 once API access opens.
 2. **Lens 4 (Trace Completeness, v1)**: the alignment-debt entry point. The score formula above is the v1; the federated-learning-style double-momentum tracker is a stretch v2. ~3 weeks to a measurable per-WO score.
 3. **Lens 3 (Blueprint-to-Code Drift)**: most architecturally ambitious because each Blueprint claim needs a verifier function. Highest leverage once landed because it directly addresses the "projects accumulate debt" framing. ~4 weeks for a useful baseline.
 
