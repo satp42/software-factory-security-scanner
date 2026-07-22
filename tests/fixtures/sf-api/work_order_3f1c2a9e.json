@@ -1,0 +1,22 @@
+{
+  "data": {
+    "object": "work_order",
+    "id": "3f1c2a9e-6a51-4c1e-9b1a-0d5e8f7a2b4c",
+    "work_order_number": 12,
+    "title": "Manifest validation pipeline",
+    "status": "completed",
+    "priority": "high",
+    "type": "build",
+    "phase": null,
+    "assignee": null,
+    "labels": [],
+    "markdown_content": "## Summary\n\nImplement the per-plugin manifest validator described in the Validation Architecture blueprint.\n\n## In Scope\n\n- Manifest schema\n\n## Out of Scope\n\n- Build targets\n\n## Requirements\n\n- Manifest Validation Requirements\n\n## Blueprints\n\n- Validation Architecture\n\n## E2E Acceptance Tests\n\n- COV_VALIDATE_001",
+    "implementation_plan": null,
+    "created_at": "2026-06-20T09:00:00Z",
+    "updated_at": "2026-07-01T10:00:00Z",
+    "connected_context": [
+      {"resourceType": "blueprint", "resourceId": "bp-doc-feat-001"},
+      {"resourceType": "requirements_document", "resourceId": "req-doc-feat-001"}
+    ]
+  }
+}

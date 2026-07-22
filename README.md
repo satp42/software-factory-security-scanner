@@ -50,6 +50,34 @@ Outputs:
 - `./reports/report.md` — human-readable: executive summary, risk-prioritized action list, findings nested by PRD → Feature → Blueprint → Work Order, and a separate "Unmapped Findings" section for findings whose package is not declared in any Work Order.
 - `./reports/report.json` — machine-readable: same content as a structured object, suitable for downstream automation.
 
+## Knowledge Graph sources
+
+The resolver is source-agnostic (a `GraphSource` seam); the scan command
+accepts exactly one of three source modes:
+
+| Flag | Where the graph comes from | Dependency attribution |
+|------|---------------------------|------------------------|
+| `--kg PATH` | A local directory of frontmattered Markdown artifacts (the synthetic KG in `kg/`, demos, fixtures). | Declared in each Work Order's `dependencies-introduced` frontmatter field (synthetic-KG convention only). |
+| `--kg-api BASE_URL` | A live Software Factory instance's **external REST API** (`/v2/external-api/...`). Requires a project-scoped API key in `$SOFA_EXT_API_KEY` (created in Project Settings; `sofa-ext-` prefix). Pin an organization with `$SOFA_ORG_ID` if needed. | Derived from git: each Work Order's delivery branch/PR (from the target repo's `.sw-factory` state) is resolved to a commit range, and the manifest delta is attributed to that Work Order. |
+| `--kg-sw-factory` | The target repos' own committed `.sw-factory/WO-*/` execution state (Work Orders plus their linked Blueprint and Requirements documents). | Same git-derived manifest deltas. |
+
+```bash
+# Against a live Software Factory instance:
+export SOFA_EXT_API_KEY=sofa-ext-...
+sf-scan scan --repo https://github.com/acme/product --kg-api https://factory.acme.com --out ./reports
+
+# Against a repo that carries its own .sw-factory state:
+sf-scan scan --repo https://github.com/acme/product --kg-sw-factory --out ./reports
+```
+
+Real Software Factory Work Orders carry no machine-readable dependency
+declarations, so in the API and `.sw-factory` modes the attribution is
+*computed, not declared*: Work Order → delivery branch/PR → commit range →
+dependency-manifest delta. Work Orders whose delivery can't be resolved get
+no attribution and a scan warning — their findings surface honestly in the
+Unmapped section. This manifest-delta primitive is shared with Lens 4's
+`Sd` sub-signal (see `docs/architecture.md`).
+
 ## Sample output
 
 A pre-generated sample lives at [`examples/sample-report.md`](examples/sample-report.md). Excerpt from the executive summary:
@@ -76,7 +104,7 @@ Five components run in sequence:
 1. **Fetch.** Each `--repo` URL (optionally `URL@SHA` pinned) is cloned into a temp directory.
 2. **Extract.** Manifest parsers for npm (`package.json`, `package-lock.json`), PyPI (`requirements.txt`, `pyproject.toml`), Go modules (`go.mod`), and RubyGems (`Gemfile.lock`) walk the cloned tree and produce a normalized list of `(ecosystem, package, version)` tuples. Lockfile entries win over manifest entries when both exist.
 3. **Query.** OSV.dev's batch API resolves CVEs across the aggregate dependency list. Results are cached in `~/.cache/sf-scan/vuln-cache.db` with a 24-hour TTL; bypass with `--no-cache`. OSV.dev aggregates the GitHub Advisory Database, so GHSA-prefixed findings carry both source tags.
-4. **Resolve.** Each finding's `(ecosystem, package)` is matched against every Work Order's `dependencies-introduced` field. Matches walk upward through the Work Order's `blueprint` → Blueprint's `feature` (or `product` for foundation blueprints) → Feature's `product` → PRD. Findings with no match land in the "Unmapped" bucket.
+4. **Resolve.** Each finding's `(ecosystem, package)` is matched against the per-Work-Order dependency index — populated from `dependencies-introduced` frontmatter in local-directory mode, or from git-derived manifest deltas in the API and `.sw-factory` modes. Matches walk upward through the Work Order's `blueprint` → Blueprint's `feature` (or `product` for foundation blueprints) → Feature's `product` → PRD. Findings with no match land in the "Unmapped" bucket.
 5. **Render.** `report.md` and `report.json` are emitted to `--out`. The Markdown nests headings by ontology level with relative links to every KG artifact file.
 
 See [`docs/architecture.md`](docs/architecture.md) for the full four-lens engine architecture and the alignment-debt research bridge.
@@ -110,7 +138,7 @@ Run network-dependent tests (live OSV.dev + GitHub clone):
 SF_SCAN_NETWORK_TESTS=1 pytest
 ```
 
-129 unit and integration tests live in `tests/`. Two more are network-dependent and opt-in.
+179 unit and integration tests live in `tests/`. Two more are network-dependent and opt-in.
 
 ## License
 

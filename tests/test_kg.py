@@ -8,9 +8,11 @@ from pathlib import Path
 import pytest
 
 from sf_scan.kg import (
+    KGNode,
     KGParseError,
     KGPath,
     KnowledgeGraph,
+    LocalDirectorySource,
     parse_frontmatter,
     parse_simple_yaml,
 )
@@ -270,3 +272,86 @@ class TestRealSyntheticKg:
         # the Unmapped Findings section of reports.
         kg = KnowledgeGraph.load(real_kg_root)
         assert kg.map_dependency("npm", "@types/node") is None
+
+
+# ---------------------------------------------------------------------------
+# GraphSource seam
+# ---------------------------------------------------------------------------
+
+
+class _InMemorySource:
+    """Minimal GraphSource for seam tests — no disk involved."""
+
+    def __init__(self, nodes: list[KGNode]) -> None:
+        self._nodes = nodes
+
+    def describe(self) -> str:
+        return "in-memory test source"
+
+    def iter_nodes(self):
+        yield from self._nodes
+
+
+def _chain_nodes() -> list[KGNode]:
+    return [
+        KGNode(id="PRD-X", title="Product", artifact_type="prd", path=None),
+        KGNode(
+            id="F-X",
+            title="Feature",
+            artifact_type="feature",
+            path=None,
+            metadata={"product": "PRD-X"},
+        ),
+        KGNode(
+            id="BP-X",
+            title="Blueprint",
+            artifact_type="blueprint-feature",
+            path=None,
+            metadata={"feature": "F-X"},
+        ),
+        KGNode(
+            id="WO-X",
+            title="Work Order",
+            artifact_type="work-order",
+            path=None,
+            url="https://factory.example/wo/1",
+            metadata={"blueprint": "BP-X"},
+        ),
+    ]
+
+
+class TestFromSource:
+    def test_resolves_chain_from_in_memory_source(self) -> None:
+        nodes = _chain_nodes()
+        nodes[-1].metadata["dependencies-introduced"] = ["npm:left-pad"]
+        kg = KnowledgeGraph.from_source(_InMemorySource(nodes))
+        path = kg.map_dependency("npm", "left-pad")
+        assert path is not None and path.is_complete
+        assert path.prd.id == "PRD-X"
+        assert path.work_order.url == "https://factory.example/wo/1"
+
+    def test_empty_source_validates_with_source_label(self) -> None:
+        kg = KnowledgeGraph.from_source(_InMemorySource([]))
+        issues = kg.validate()
+        assert len(issues) == 1
+        assert issues[0].path == "in-memory test source"
+
+    def test_load_is_backcompat_wrapper(self, tiny_kg: Path) -> None:
+        via_load = KnowledgeGraph.load(tiny_kg)
+        via_source = KnowledgeGraph.from_source(LocalDirectorySource(tiny_kg))
+        assert via_load.nodes.keys() == via_source.nodes.keys()
+        assert via_load.declared_dependencies() == via_source.declared_dependencies()
+
+
+class TestAddDependencies:
+    def test_enrichment_maps_previously_unmapped_dep(self) -> None:
+        kg = KnowledgeGraph.from_source(_InMemorySource(_chain_nodes()))
+        assert kg.map_dependency("npm", "lodash") is None
+        kg.add_dependencies("WO-X", ["npm:lodash"])
+        path = kg.map_dependency("npm", "lodash")
+        assert path is not None and path.is_complete
+
+    def test_duplicate_and_malformed_entries_ignored(self) -> None:
+        kg = KnowledgeGraph.from_source(_InMemorySource(_chain_nodes()))
+        kg.add_dependencies("WO-X", ["npm:lodash", "npm:lodash", "garbage", ":", "npm:"])
+        assert kg.declared_dependencies() == [("npm", "lodash")]

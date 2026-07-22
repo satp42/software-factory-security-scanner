@@ -33,16 +33,25 @@ def parse_repo_spec(spec: str) -> tuple[str, str | None]:
 
 
 @contextmanager
-def clone_repo(url: str, sha: str | None = None) -> Iterator[Path]:
+def clone_repo(
+    url: str, sha: str | None = None, *, full_history: bool = False
+) -> Iterator[Path]:
     """Clone ``url`` (optionally at ``sha``) into a temp directory.
 
     Yields the absolute path to the cloned tree. Cleans up the temp directory
     when the context exits, even if an exception is raised inside.
+
+    ``full_history`` disables the shallow-clone optimization. Derivation-based
+    dependency attribution (``derive.py``) needs to walk commits and check out
+    historical trees, which a depth-limited clone cannot serve.
     """
     tempdir = Path(tempfile.mkdtemp(prefix="sf-scan-"))
     target = tempdir / "repo"
     try:
-        depth = ["--depth", "1"] if sha is None else ["--depth", "50"]
+        if full_history:
+            depth = []
+        else:
+            depth = ["--depth", "1"] if sha is None else ["--depth", "50"]
         try:
             subprocess.run(
                 ["git", "clone", *depth, url, str(target)],

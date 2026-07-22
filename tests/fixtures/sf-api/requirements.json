@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "object": "requirements_document",
+      "id": "req-doc-overview-001",
+      "title": "Plugin Platform Product Overview",
+      "document_type": "product_overview"
+    },
+    {
+      "object": "requirements_document",
+      "id": "req-doc-feat-001",
+      "title": "Manifest Validation Requirements",
+      "document_type": "feature_requirements"
+    }
+  ],
+  "page": 1,
+  "page_size": 100,
+  "total": 2
+}
