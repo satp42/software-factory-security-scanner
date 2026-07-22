@@ -1,0 +1,25 @@
+{
+  "fig_number": "1",
+  "title": "DATA PROCESSING SYSTEM",
+  "rankdir": "TB",
+  "numbering": { "start": 100, "step": 2 },
+  "numeral_style": "inside",
+  "boxes": [
+    { "id": "src",   "label": "DATA SOURCE" },
+    { "id": "ing",   "label": "INGESTION MODULE" },
+    { "id": "store", "label": "DATA STORE" },
+    { "id": "proc",  "label": "PROCESSING\nMODULE" },
+    { "id": "score", "label": "SCORING MODULE" },
+    { "id": "out",   "label": "OUTPUT INTERFACE" }
+  ],
+  "groups": [
+    { "id": "engine", "label": "ANALYSIS ENGINE", "members": ["proc", "score"] }
+  ],
+  "edges": [
+    { "from": "src",   "to": "ing" },
+    { "from": "ing",   "to": "store" },
+    { "from": "store", "to": "proc" },
+    { "from": "proc",  "to": "score" },
+    { "from": "score", "to": "out", "label": "ranked results" }
+  ]
+}
