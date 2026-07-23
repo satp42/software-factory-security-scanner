@@ -47,3 +47,4 @@ htmlcov/
 reports/
 *.db
 .cache/
+.firecrawl/

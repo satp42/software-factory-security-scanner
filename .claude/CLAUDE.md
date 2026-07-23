@@ -75,3 +75,70 @@ Mapping is by `(ecosystem, package)` only, **not version** — a Work Order reco
 ## Exit codes
 
 `0` OK · `2` usage error (bad/missing args) · `3` input error (KG path missing, or every clone failed). KG parse *warnings/errors* do not change the exit code — they go into the report.
+
+---
+
+## How 8090 Software Factory works (from the official docs)
+
+Source: <https://www.8090.ai/docs/general/introduction> (and the `modules/` + `raw-materials/` pages). This is the real platform `sf-scan` targets; the synthetic `kg/software-factory-plugin/` only imitates it. Where the two diverge, the synthetic-KG caveats below the meeting-context section apply.
+
+Software Factory is an AI-native SDLC orchestration platform. Its premise: writing code was never the bottleneck — deciding *what* to build and keeping intent, architecture, and code aligned is. It replaces tool sprawl with one workspace where humans and specialized agents work from a single source of truth, the **Knowledge Graph**, which connects requirements → architecture → implementation so they evolve together. When requirements change or code drifts, the system detects the divergence and drives a human-in-the-loop resolution.
+
+### Raw materials (inputs to the graph)
+
+- **Artifacts** — external files (legacy PRDs, meeting notes, mockups, interviews, diagrams, audio) uploaded and indexed so agents draw on real context instead of assumptions. Can be linked into documents for traceability.
+- **Codebase connection** — repositories connected through the **8090 Software Factory GitHub App** (read-only). Indexing runs automatically (~5–10 min); a webhook reindexes on every push to the tracked branch.
+
+### The pipeline — four modules
+
+1. **Requirements** — define *what* and *why*, implementation-agnostic. Two document kinds: **Product Overview Documents** (strategic context) and **Feature Requirements Documents (FRDs)**, one per feature. The Requirements Agent reverse-engineers requirements from artifacts/code or drafts them via structured Q&A, and flags ambiguity, gaps, conflicts, and duplication.
+2. **Blueprints** — human-readable technical specs, the source of truth for *how* the system is built. Three layers:
+   - **Container Blueprint** — one C4 container (deployable/runnable unit: web app, API server, DB, worker, pipeline). Infrastructure-focused, feature-agnostic.
+   - **Component Blueprint** — a reusable system capability spanning multiple C4 components, often cross-container. Feature-agnostic.
+   - **Feature Blueprint** — composes Component Blueprints (plus feature-specific glue) to satisfy one FRD; it is the technical counterpart of that FRD.
+3. **Work Orders** — structured, traceable tasks toward the target state. Each carries: core metadata (ID, title, status, assignees, phase), a rich description (**Purpose, Acceptance Criteria, Out of Scope**), **Knowledge Graph connections** (links up to requirements/blueprints), an optional file-level **implementation plan**, and activity/comments. Extracted from Blueprints by the agent (configurable extraction strategy) or created manually, then organized into **phases** and sequenced.
+4. **Feedback** *(formerly "Validator" — the intro page still says Validator; the module is now Feedback)* — collects end-user reports (`FB-N` items) and groups them into **Themes** with quote evidence, which link back to Work Orders. This closes the loop from real-world usage into planning.
+
+### Drift detection
+
+Background agents continuously compare requirements, blueprints, work orders, and code. Alerts fire when code changes may invalidate a blueprint, a PRD update is not reflected downstream, foundation/shared changes conflict with features, or work orders fall out of date with their blueprints. Each alert opens a guided workflow to re-align — this internal-consistency drift check is exactly what has no notion of an *external* reference like a CVE, which is why `sf-scan` exists.
+
+### Integration surfaces
+
+- **MCP** — coding agents connect to Work Orders from the local dev environment (list assigned/Ready work orders, read full details + implementation plans, update status, search requirements/blueprints/artifacts). Set up from the Work Orders table view.
+- **Feedback Integration REST API** — `POST /v2/reporting-api/feedback` with an `X-API-Key: sf-rpt-...` key submits feedback (`end_user_email` + `content` required). The old `POST /v1/integration/validator/feedback` (`sf-int-...`) endpoint is deprecated and retires 2026-08-01.
+
+---
+
+## Project context (from 8090 collaboration meetings)
+
+Background framing for why this project exists and how the real Software Factory differs from the synthetic demo KG. This is orientation for anyone working on the code, not build instructions.
+
+### Why this project exists
+
+- Across 37 documented Software Factory releases there is not one security, CVE, or SBOM feature. Every code-analysis feature 8090 ships compares code only against documents the project's own team authored.
+- "Drift" is therefore an internal consistency check: a vulnerable dependency is invisible to it by construction, because no blueprint ever asserted a version was safe.
+- `sf-scan` is not adding security *to* the graph — it brings the first external reference (OSV/CVE data) into a system that has only ever compared intent to itself.
+
+### The Software Factory Knowledge Graph in practice
+
+- Ontology: PRD → Feature → Blueprint → Work Order → Code. Blueprints map to Work Orders (specific components); Work Orders connect to code.
+- Real-world limitation: traces between components are incomplete. Coding-agent traces are missing, and traces are not unified across the separate requirements / blueprint / work-order agents, so cross-correlation is hard.
+
+### Synthetic-KG caveat (critical for Lens 1)
+
+- Lens 1 maps CVEs to Work Orders by matching packages against a `dependencies-introduced` list. **This will not survive contact with a real Knowledge Graph.**
+- A real 8090 Work Order has exactly six sections: Summary, In Scope, Out of Scope, Requirements, Blueprints, E2E Acceptance Tests. Neither `dependencies-introduced` nor `files-affected` appears in any published 8090 guide — the synthetic `kg/software-factory-plugin/` invented both, so against a real repo the mapping rate would go to 0%.
+- To harden Lens 1, map through what real Work Orders actually carry: REQ/AC IDs, blueprint names, or git history.
+
+### Real 8090 artifact conventions (for Lens 2 onward)
+
+- Requirements use `REQ-[PREFIX]-NNN`; acceptance criteria use `AC-[PREFIX]-NNN.N`, each phrased "When [condition], the system shall [behavior]."
+- Real Work Orders copy those IDs verbatim. The Work Order guide specifies `COV_` coverage IDs, `@COV_` test tags, and exact spec paths.
+- There is no "AE-" / "Acceptance Examples" convention — that was invented and should not be cited.
+
+### Direction of the four-lens engine
+
+- Lens 2: map how a single vulnerability propagates through the graph and dispatch Work Orders to fix impacted components.
+- Lens 4 (alignment debt): a scalar drift score for every Knowledge Graph edge, measuring translation loss across Refinery → Foundry → Work Orders → Code.
+- Long-term goal: an autonomous end-to-end security pipeline — plug into a source like Wiz or Dependabot, then detect, remediate, test, and resolve.
